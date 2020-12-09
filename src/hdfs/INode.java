@@ -15,7 +15,7 @@ public class INode implements Serializable {
 
     }
     public INode() {
-        this.mapnode = new HashMap<String,String>;
+        this.mapnode = new HashMap<String,String>();
     }
     public String getfilename() {
         return filename;
