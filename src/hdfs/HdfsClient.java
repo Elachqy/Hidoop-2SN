@@ -103,7 +103,7 @@ public class HdfsClient {
 	     	}
 	     	FileFmt.close();
 	    	/* Récupération de la liste des DataNode où on va envoyer les fragments sous la forme "adress@port" */
-		// à compléter
+		// à compléter (getDataNode auprès du serveur) ...
 		/* Lancer un thread pour écrire les fragments dans les DataNodes */
 		// à compléter
 		// ...
