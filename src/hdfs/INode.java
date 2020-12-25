@@ -17,17 +17,14 @@ public class INode implements Serializable {
     public INode() {
         this.mapnode = new HashMap<String,String>();
     }
-    public String getfilename() {
+    public String getFileName() {
         return filename;
     }
-    public Map<String,String> getmapnode() {
+    public Map<String,String> getMapNode() {
         return mapnode;
     }
-    public void setfilename(String newname) {
+    public void setFileName(String newname) {
             this.filename = newname;
-    }
-    public void setnamenode(Map<String,String> newmapnode) {
-        // ne sert à rien  priori 
     }
     
 }
