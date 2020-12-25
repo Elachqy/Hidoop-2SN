@@ -41,8 +41,27 @@ public class HdfsServer {
 			e.printStackTrace();
 		}
 		return DataNodeList;
-	}
+    }
 
-    
-    
+    /* 
+    * Méthode qui contacte le DataNode et lui envoie un fragment à stocker
+    * @param numFragment : numéro du fragment
+    * @param nodeAdress  : numéro du port du DataNode
+    * @param localFSSourceFname : nom de fichier
+    * @param chunkFileFmt : le fichier (fragment) à stocker
+    * @param fmt :
+    * @param bw  : nombre total de bits à écrire
+    * @param nbFragments : nombre de fragments
+    * @return nombre de bits lus et envoyés au DataNode
+    */
+    public static long writeChunkInDN(int numFragment, String nodeAdress, int port, String localFSSourceFname, Format chunkFileFmt, Format.Type fmt ,long bw, int nbFragments) {
+    	// à complérer
+	// ...
+    }
+	
+	
+	
+	
+	
+	
 }
