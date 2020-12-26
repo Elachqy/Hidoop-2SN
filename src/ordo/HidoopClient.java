@@ -1,84 +1,73 @@
 package ordo;
 
+import java.io.*;
 import java.net.MalformedURLException;
-import java.net.InetAddress;
-
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
-
 import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.Scanner;
+import java.io.IOException;
 
-import formats.*;
-import hdfs.*;
-import map.*;
-import application.*;
-import java.io.*;
-
+import config.Project;
+import application.MyMapReduce;
+import map.MapReduce;
+import formats.Format;
+import formats.KVFormat;
+import formats.LineFormat;
+import formats.Format.OpenMode;
+import formats.Format.Type;
+import hdfs.HdfsClient;
 
 
 public class HidoopClient {
 
-	// liste des références aux démons du cluster dans le registre
+	// Liste des références aux workers du cluster dans le registre.
 	public static Worker listeWorker[];
 
-	private static void usage() {
-		System.out.println("Utilisation : java HidoopClient fichier format nbmachines");
-	}
+	// Récupérer les emplacements indiqués dans le fichier de configuration
+	private static String[] recupererURL(int nbMachines) {
 
-	private static void usage_config() {
-		System.out.println("Utilisation du fichier de configuration :"
-				+ "L1 : machine1,machine2"
-				+ "L2 : port_hdfs1,port_hdfs2"
-				+ "L3 : ports registres RMI"
-				+ "L4 : taille");
-	}
-
-	// récupérer les emplacements indiqués dans le fichier de configuration
-	private static String[] recupURL(int nbMachines) {
 		String path = "src/config/config_hidoop.cfg";
-
-		File file = new File(path);
+		File fichier = new File(path);
 		int cpt = 0;
 
 		String[] ports = new String[nbMachines];
 		String[] noms = new String[nbMachines];
 		String[] urls = new String[nbMachines];
 
-		BufferedReader br;
+		BufferedReader buffer;
 		try {
-			br = new BufferedReader(new FileReader(file));
-			String st; 
-			while ((st = br.readLine()) != null) {
-				// si la ligne n'est pas un commentaire
-				if (!st.startsWith("#")) {
-					// noms des machines
+			buffer = new BufferedReader(new FileReader(fichier));
+			String str; 
+			while ((str = buffer.readLine()) != null) {
+				// Si la ligne n'est pas un commentaire
+				if (!str.startsWith("#")) {
+					// Noms des machines
 					if (cpt == 0) {
-						noms = st.split(",");
+						noms = str.split(",");
 					}
-					// ports RMI
+					// Ports RMI
 					if (cpt == 2) {
-						ports = st.split(",");
+						ports = str.split(",");
 					}
 					cpt++;					  
 				}
 			}
+			buffer.close();
 
-			br.close();
-
-			// si le fichier de configuration est correct
+			// Si le fichier de configuration est correct
 			if (noms.length != 0 && ports.length == noms.length) {
 				for (int i=0 ; i < nbMachines ; i++) {
-					urls[i] = "//" + noms[i] + ":" + ports[i] + "/Worker";
-					// System.out.println(urls[i]);
+					urls[i] = "//" + noms[i] + ":" + ports[i] + "/worker";
 				}
 			} else {
-				usage_config();
+				System.out.println("Utilisation du fichier de configuration :"
+						+ "L1 : machine1,machine2"
+						+ "L2 : port_hdfs1,port_hdfs2"
+						+ "L3 : ports registres RMI"
+						+ "L4 : taille");
 			}
 
 		} catch (IOException e) {
@@ -86,7 +75,6 @@ public class HidoopClient {
 		}
 
 		return urls;
-
 	}
 
 
@@ -95,27 +83,25 @@ public class HidoopClient {
 		// Formats de fichiers utilisables
 		String[] formats = {"line","kv"};
 
-		// Fichiers source / destination
+		// Fichiers source 
 		Format reader;
+		// Fichiers destination
 		Format writer;
-
-		// nombre de machines à utiliser
+		// Nombre de machines à utiliser
 		int nbCluster;
-
-		// informations de format de fichier
+		// Informations de format de fichier
 		Type ft;
-
-		// liste des url correspondant aux démons du cluster
+		// Liste des url correspondant aux démons du cluster
 		String urlWorker[];
 
 		try {
-			// vérifier le bon usage du client
+			// Vérifier le bon usage du client
 			if (args.length < 3) {
-				usage();
+				System.out.println("Utilisation : java HidoopClient fichier format nbmachines");
 				System.exit(1);
 			} else {
 				if (!Arrays.asList(formats).contains(args[1])) {
-					usage();
+					System.out.println("Utilisation : java HidoopClient fichier format nbmachines");
 					System.exit(1);
 				}
 			}
@@ -123,16 +109,14 @@ public class HidoopClient {
 			// Nom du fichier sur lequel appliquer le traitement
 			String hdfsFname = args[0];
 
-			// fichier HDFS destination  : ajout du suffixe "-res"
+			// Fichier HDFS destination  : ajout du suffixe "-res"
 			// Nom du fichier traité avant application du reduce
 			String[] nomExt = hdfsFname.split("\\.");
 			String localFSDestFname = "data/" + nomExt[0] + "-res" + "." + nomExt[1];
-			System.out.println(localFSDestFname);
 
-			// fichier résultat du reduce : ajout du suffixe "-red"
+			// Fichier résultat du reduce : ajout du suffixe "-red"
 			// Nom du fichier traité après application du reduce
 			String reduceDestFname = "data/" + nomExt[0] + "-red" + "." + nomExt[1];
-			System.out.println(reduceDestFname);
 
 			// Récupérer le format de fichier indiqué en argument
 			if (args[1].equals("line")) {
@@ -141,62 +125,53 @@ public class HidoopClient {
 				ft = Format.Type.KV;
 			}
 
-			// récupérer le nombre de machines
+			// Récupérer le nombre de machines
 			nbCluster = Integer.parseInt(args[2]);
-
-			// récupérer les URLs depuis le fichier de configuration 
-			urlWorker = recupURL(nbCluster);
-
-			// récupérer les références des objets Worker distants
+			// Récupérer les URLs depuis le fichier de configuration 
+			urlWorker = recupererURL(nbCluster);
+			// Récupérer les références des objets Worker distants
 			// à l'aide des url (déjà connues)
 			listeWorker = new Worker[nbCluster];
-
 			for (int i = 0 ; i < nbCluster ; i++) {
 				listeWorker[i]=(Worker) Naming.lookup(urlWorker[i]);
 			}
 
-			// création et définition des attributs de l'objet Job
-			// on donne la liste des références aux Workers à l'objet Job
+			// Création et définition des attributs de l'objet Job
+			// On donne la liste des références aux Workers à l'objet Job
 			Job job = new Job();
 
-			// indiquer à job le nom et format du fichier à traiter
+			// Indiquer à job le nom et format du fichier à traiter
 			job.setInputFname(hdfsFname);
 			job.setInputFormat(ft);
 
-			// création de l'objet MapReduce
+			// Création de l'objet MapReduce
 			MyMapReduce mr = new MyMapReduce();
 
-			// lancement des tâches
+			// Lancement des tâches
 			System.out.println("Lancement du Job");
 			job.startJob(mr);
 			System.out.println("Fin du lancement du Job");
 
-			// attendre que toutes les tâches soient terminées
-			// via un sémaphore initialisé à 0
-			Semaphore attente = job.cb.getTachesFinies();
-			System.out.println("Attente du sémaphore");
-			attente.acquire();
-			System.out.println("Fin du sémaphore");
-
-			// récupérer le fichier traité via HDFS
-			HdfsClient.HdfsRead(hdfsFname, localFSDestFname, nbCluster);
+			// Récupérer le fichier traité via HDFS
+			HdfsClient.HdfsRead(hdfsFname, localFSDestFname);
 			System.out.println("Lecture terminée");
 
 			// Reader : fichier local après traitement sur les machines du cluster
 			// Writer : fichier final généré après application du reduce
-			OpenMode modeR = Format.OpenMode.R;
-			OpenMode modeW = Format.OpenMode.W;
-
 			reader = new KVFormat(localFSDestFname);
 			writer = new KVFormat(reduceDestFname);
+			reader.open(OpenMode.R);
+			writer.open(OpenMode.W);
 
-			reader.open(modeR);
-			writer.open(modeW);
-
-			// appliquer reduce sur le résultat
-			// reader : format kv ; writer : format kv
+			// Appliquer reduce sur le résultat
+			// Traitement du fichier résultant des traitements des fragments.
+			// Reader : format kv  
+			// Writer : format kv
 			System.out.println("Début du reduce");
+			long startT = System.currentTimeMillis();
 			mr.reduce(reader, writer);
+			long endT = System.currentTimeMillis();
+			System.out.println("Temps du Reduce : " + (endT - startT));
 			System.out.println("Fin du reduce");
 
 			reader.close();
@@ -210,11 +185,8 @@ public class HidoopClient {
 		} catch (NotBoundException e) {
 			e.printStackTrace();
 
-		} catch (InterruptedException e) {
-			e.printStackTrace();	
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
 		}
 	}
-
 }
