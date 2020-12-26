@@ -5,7 +5,7 @@ package ordo;
 import map.MapReduce;
 import formats.Format;
 
-public interface JobInterfaceX  extends JobInterface {
+public interface JobInterfaceX extends JobInterface {
     public void setNumberOfReduces(int tasks);
     public void setNumberOfMaps(int tasks);
     public void setOutputFormat(Format.Type ft);

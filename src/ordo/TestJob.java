@@ -2,10 +2,17 @@ package ordo;
 
 import java.util.HashMap;
 
-import formats.*;
-import hdfs.*;
-import map.*;
-import application.*;
+import formats.Format;
+import formats.FormatReader;
+import formats.FormatWriter;
+import formats.Format.OpenMode;
+import formats.Format.Type;
+import formats.KVFormat;
+import formats.LineFormat;
+import hdfs.HdfsClient;
+import map.MapReduce;
+import map.Reducer;
+import map.Mapper;
 
 public class TestJob {
 
@@ -16,9 +23,8 @@ public class TestJob {
 		}
 		System.out.println(listenodes);
 		Job job = new Job();
-		job.setPortWorkers(Integer.valueOf(args[0]));
 		job.setInputFormat(Format.Type.LINE);
-		job.setInputFname("spleen.txt");
+		job.setInputFname("filesample.txt");
 		MapReduce map = new MapReduce() {
 
 			@Override
@@ -31,6 +37,7 @@ public class TestJob {
 				System.out.println("Map !");
 			}
 		};
+
 		job.startJob(map);
 	}
 }
