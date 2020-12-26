@@ -29,7 +29,7 @@ public class HidoopClient {
 	// Récupérer les emplacements indiqués dans le fichier de configuration
 	private static String[] recupererURL(int nbMachines) {
 
-		String path = "src/config/config_hidoop.cfg";
+		String path = "src/config/configure_hidoop.cfg";
 		File fichier = new File(path);
 		int cpt = 0;
 
